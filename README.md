@@ -18,3 +18,15 @@
     <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
   <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
 </p>
+
+# 🛠️ Orders Microservice  
+
+To start the Orders Microservice, follow these steps:
+
+
+## Development steps
+1. **Clone the repository**  
+2. **Create a `.env` file** based on the `.env.template` file  
+3. **Start the database** with `docker compose up -d`  
+4. **Start the project** with `npm run start:dev`
+
