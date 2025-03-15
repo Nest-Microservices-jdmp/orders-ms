@@ -1,5 +1,6 @@
+import { OrderStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsOptional, IsPositive } from 'class-validator';
+import { IsEnum, IsOptional, IsPositive } from 'class-validator';
 
 export class PaginationDto {
   @IsPositive()
@@ -11,4 +12,11 @@ export class PaginationDto {
   @IsOptional()
   @Type(() => Number)
   limit?: number = 10;
+}
+export class PaginationStatusDto extends PaginationDto {
+  @IsEnum(OrderStatus, {
+    message: `Possible status values are ${Object.values(OrderStatus).join(', ')}`,
+  })
+  @IsOptional()
+  status?: OrderStatus;
 }
