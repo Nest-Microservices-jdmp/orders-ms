@@ -13,7 +13,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { PaginationStatusDto } from 'src/common';
 import { OrderStatus, PrismaClient } from '@prisma/client';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
-import { PRODUCT_SERVICE } from 'src/config';
+import { NATS_SERVICE } from 'src/config';
 import { firstValueFrom } from 'rxjs';
 import { OrderItemCustomDto } from './dto';
 
@@ -46,9 +46,7 @@ export interface ExtendedOrderResponse extends OrderResponse {
 export class OrderService extends PrismaClient implements OnModuleInit {
   private readonly logger = new Logger('OrderService');
 
-  constructor(
-    @Inject(PRODUCT_SERVICE) private readonly productClient: ClientProxy,
-  ) {
+  constructor(@Inject(NATS_SERVICE) private readonly client: ClientProxy) {
     super();
   }
 
@@ -64,7 +62,7 @@ export class OrderService extends PrismaClient implements OnModuleInit {
 
     try {
       const products: ValidatedProduct[] = await firstValueFrom(
-        this.productClient.send<ValidatedProduct[], number[]>(
+        this.client.send<ValidatedProduct[], number[]>(
           { cmd: 'validate_product' },
           productIds,
         ),
@@ -184,6 +182,15 @@ export class OrderService extends PrismaClient implements OnModuleInit {
   async findOne(id: string) {
     const order = await this.order.findFirst({
       where: { id },
+      include: {
+        OrderItem: {
+          select: {
+            price: true,
+            quantity: true,
+            productId: true,
+          },
+        },
+      },
     });
     if (!order) {
       throw new RpcException({
@@ -191,7 +198,27 @@ export class OrderService extends PrismaClient implements OnModuleInit {
         status: HttpStatus.BAD_REQUEST,
       });
     }
-    return order;
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    const productsIds = order.OrderItem.map((orderItem) => orderItem.productId);
+
+    const products: ValidatedProduct[] = await firstValueFrom(
+      this.client.send<ValidatedProduct[], number[]>(
+        { cmd: 'validate_product' },
+        productsIds as number[],
+      ),
+    );
+
+    return {
+      ...order,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      OrderItem: order.OrderItem.map((item) => ({
+        ...item,
+        name:
+          products.find((product) => product.id === item.productId)?.name ??
+          'Unknown',
+      })),
+    };
   }
   async findStatus({ status }: any) {
     const order = await this.order.findFirst({
