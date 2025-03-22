@@ -1,17 +1,24 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Controller } from '@nestjs/common';
-import { MessagePattern, Payload } from '@nestjs/microservices';
+import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderService } from './order.service';
 import { PaginationStatusDto } from 'src/common';
 import { OrderStatus } from '@prisma/client';
+import { PaidOrderDto } from './dto';
 
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly orderService: OrderService) {}
 
   @MessagePattern({ cmd: 'create_order' })
-  create(@Payload() createOrderDto: CreateOrderDto) {
-    return this.orderService.create(createOrderDto);
+  async create(@Payload() createOrderDto: CreateOrderDto) {
+    const order = await this.orderService.create(createOrderDto);
+    const paymentSession = await this.orderService.createPaymentSession(order);
+    return {
+      order,
+      paymentSession,
+    };
   }
 
   @MessagePattern({ cmd: 'find_orders' })
@@ -33,5 +40,10 @@ export class OrdersController {
     @Payload() { id, status }: { id: string; status: OrderStatus },
   ) {
     return this.orderService.updateStatus(id, status);
+  }
+
+  @EventPattern({ cmd: 'payment.succeeded' })
+  async paidOrder(@Payload() paidOrderDto: PaidOrderDto) {
+    return await this.orderService.paidOrder(paidOrderDto);
   }
 }

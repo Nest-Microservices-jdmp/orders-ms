@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/require-await */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -15,32 +17,13 @@ import { OrderStatus, PrismaClient } from '@prisma/client';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { NATS_SERVICE } from 'src/config';
 import { firstValueFrom } from 'rxjs';
-import { OrderItemCustomDto } from './dto';
-
-// ✅ Representa un item en la orden
-export interface CreateOrderItem {
-  productId: number;
-  price: number;
-  quantity: number;
-}
-
-export interface ValidatedProduct {
-  id: number;
-  name: string;
-  price: number;
-  available: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface OrderResponse {
-  totalAmount: number;
-}
-
-export interface ExtendedOrderResponse extends OrderResponse {
-  totalItems: number;
-  OrderItem?: OrderItemCustomDto[];
-}
+import {
+  CreateOrderItem,
+  ExtendedOrderProperties,
+  ExtendedOrderResponse,
+  ValidatedProduct,
+} from './interfaces/orders.interfaces';
+import { PaidOrderDto } from './dto';
 
 @Injectable()
 export class OrderService extends PrismaClient implements OnModuleInit {
@@ -55,7 +38,9 @@ export class OrderService extends PrismaClient implements OnModuleInit {
     this.logger.log('Database Connected');
   }
 
-  async create(createOrderDto: CreateOrderDto): Promise<ExtendedOrderResponse> {
+  async create(
+    createOrderDto: CreateOrderDto,
+  ): Promise<ExtendedOrderProperties> {
     const productIds = createOrderDto.items.map(
       (orderItem: CreateOrderItem) => orderItem.productId,
     );
@@ -130,7 +115,7 @@ export class OrderService extends PrismaClient implements OnModuleInit {
         })),
       };
 
-      return extendedOrder;
+      return extendedOrder as ExtendedOrderProperties;
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       throw new RpcException({
@@ -205,7 +190,7 @@ export class OrderService extends PrismaClient implements OnModuleInit {
     const products: ValidatedProduct[] = await firstValueFrom(
       this.client.send<ValidatedProduct[], number[]>(
         { cmd: 'validate_product' },
-        productsIds as number[],
+        productsIds,
       ),
     );
 
@@ -232,5 +217,42 @@ export class OrderService extends PrismaClient implements OnModuleInit {
       });
     }
     return order;
+  }
+
+  async createPaymentSession(order: ExtendedOrderProperties) {
+    const paymentSession = await firstValueFrom(
+      this.client.send(
+        { cmd: 'create.payment.session' },
+        {
+          orderId: order.id,
+          currency: 'usd',
+          items: order.OrderItem?.map((item) => ({
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+          })),
+        },
+      ),
+    );
+
+    return paymentSession;
+  }
+
+  async paidOrder(paidOrderDto: PaidOrderDto) {
+    return await this.order.update({
+      where: { id: paidOrderDto.orderId },
+      data: {
+        status: OrderStatus.PAID,
+        paid: true,
+        paidAt: new Date(),
+        stripeChartId: paidOrderDto.stripePaymentId,
+        // relationship
+        OrderReceipt: {
+          create: {
+            receiptUrl: paidOrderDto.receiptUrl,
+          },
+        },
+      },
+    });
   }
 }
