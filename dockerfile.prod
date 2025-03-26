@@ -12,7 +12,7 @@ FROM node:22-alpine AS build
 ARG ORDER_DATABASE_URL
 ENV DATABASE_URL=${ORDER_DATABASE_URL}
 
-RUN echi "+++++++++++database_url++++++ ::: ${ORDER_DATABASE_URL}"
+RUN echo "+++++++++++database_url++++++ ::: ${ORDER_DATABASE_URL}"
 
 WORKDIR /usr/src/app
 # Copy from deps node_modules
