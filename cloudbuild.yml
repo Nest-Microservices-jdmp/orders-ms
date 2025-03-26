@@ -1,18 +1,17 @@
 steps:
-  # Paso 1: Construir la imagen Docker
+  # Paso 1: Construir la imagen Docker usando el secret para el argumento de build
   - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
     args:
-      [
-        "build",
-        "-t",
-        "southamerica-east1-docker.pkg.dev/microservices-test-454912/test/orders-ms-prod",
-        "-f",
-        "dockerfile.prod",
-        "--platform=linux/amd64",
-        ".",
-      ]
+      - -c
+      - |
+          docker build -t southamerica-east1-docker.pkg.dev/microservices-test-454912/test/orders-ms-prod \
+            -f dockerfile.prod \
+            --platform=linux/amd64 \
+            --build-arg ORDERS_DATABASE_URL=$$DATABASE_URL .
+    secretEnv: ["DATABASE_URL"]
 
-
+  # Paso 2: Hacer push de la imagen a Artifact Registry
   - name: "gcr.io/cloud-builders/docker"
     args:
       [
@@ -24,3 +23,8 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 serviceAccount: "projects/microservices-test-454912/serviceAccounts/239268984077-compute@developer.gserviceaccount.com"
+
+availableSecrets:
+  secretManager:
+    - versionName: "projects/239268984077/secrets/ORDER_DATABASE_URL/versions/1"
+      env: "DATABASE_URL"
