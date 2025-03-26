@@ -7,8 +7,8 @@ steps:
           docker build -t southamerica-east1-docker.pkg.dev/microservices-test-454912/test/orders-ms-prod \
             -f dockerfile.prod \
             --platform=linux/amd64 \
-            --build-arg ORDERS_DATABASE_URL=$$DATABASE_URL .
-    secretEnv: ["DATABASE_URL"]
+            --build-arg ORDERS_DATABASE_URL=$$ORDERS_DATABASE_URL .
+    secretEnv: ["ORDERS_DATABASE_URL"]
 
   - name: "gcr.io/cloud-builders/docker"
     args:
@@ -25,4 +25,4 @@ serviceAccount: "projects/microservices-test-454912/serviceAccounts/239268984077
 availableSecrets:
   secretManager:
     - versionName: "projects/239268984077/secrets/ORDER_DATABASE_URL/versions/1"
-      env: "DATABASE_URL"
+      env: "ORDERS_DATABASE_URL"
