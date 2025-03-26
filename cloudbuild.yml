@@ -1,5 +1,4 @@
 steps:
-  # Paso 1: Construir la imagen Docker usando el secret para el argumento de build
   - name: "gcr.io/cloud-builders/docker"
     entrypoint: "bash"
     args:
@@ -11,7 +10,6 @@ steps:
             --build-arg ORDERS_DATABASE_URL=$$DATABASE_URL .
     secretEnv: ["DATABASE_URL"]
 
-  # Paso 2: Hacer push de la imagen a Artifact Registry
   - name: "gcr.io/cloud-builders/docker"
     args:
       [
